@@ -2,41 +2,47 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { questionsAPI } from "../api";
 import { useAuth } from "../api/AuthContext";
-
-const EXAMS = [
-  { id: "SAT_MATH",    label: "SAT Matematika",    icon: "📐", desc: "Algebra, Geometriya, Statistika",   color: "#6c63ff" },
-  { id: "SAT_ENGLISH", label: "SAT Ingliz tili",   icon: "📖", desc: "Grammatika, Lug'at, Matn tushunish", color: "#a78bfa" },
-  { id: "IELTS",       label: "IELTS",              icon: "🌍", desc: "Reading, Writing, Vocabulary",       color: "#22c55e" },
-  { id: "DTM_MATH",    label: "DTM Matematika",     icon: "🧮", desc: "Algebra, Trigonometriya, Analiz",    color: "#eab308" },
-  { id: "DTM_UZB",     label: "DTM O'zbek tili",   icon: "🇺🇿", desc: "Imlo, Grammatika, Leksika",          color: "#f97316" },
-];
-
-const MODES = [
-  { id: 10,  label: "Mini (10)",   desc: "~5 daqiqa" },
-  { id: 20,  label: "Oddiy (20)",  desc: "~10 daqiqa" },
-  { id: 40,  label: "To'liq (40)", desc: "~20 daqiqa" },
-];
+import { useLanguage } from "../i18n/LanguageContext";
 
 const DIFF_SECONDS = { 10: 420, 20: 900, 40: 1800 };
 
-function pad(n) { return String(n).padStart(2, "0"); }
-function fmtTime(s) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+function fmtTime(s) {
+  return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+}
 
 // ─── Exam selection screen ────────────────────────────────────────────────────
 function ExamSelect({ onStart }) {
+  const { t } = useLanguage();
   const [exam, setExam] = useState("");
   const [count, setCount] = useState(20);
+
+  const exams = [
+    { id: "SAT_MATH", label: t("examSatMath"), icon: "📐", desc: "Algebra, Geometry, Data", color: "#6c63ff" },
+    { id: "SAT_ENGLISH", label: t("examSatEnglish"), icon: "📖", desc: "Grammar, Reading, Vocab", color: "#a78bfa" },
+    { id: "IELTS", label: t("examIelts"), icon: "🌍", desc: "Reading, Writing, Vocab", color: "#22c55e" },
+    { id: "DTM_MATH", label: t("examDtmMath"), icon: "🧮", desc: "Algebra, Trigonometry, Analysis", color: "#eab308" },
+    { id: "DTM_UZB", label: t("examDtmUzb"), icon: "🇺🇿", desc: "Grammar, Spelling, Lexicon", color: "#f97316" },
+  ];
+
+  const modes = [
+    { id: 10, label: "Mini (10)", desc: "~5 min" },
+    { id: 20, label: "Standard (20)", desc: "~10 min" },
+    { id: 40, label: "Full (40)", desc: "~20 min" },
+  ];
 
   return (
     <div className="container" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
       <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <h1>Test tanlang</h1>
-        <p>Imtihon turi va savollar sonini tanlang, boshlang!</p>
+        <h1>{t("selectExam")}</h1>
+        <p>{t("selectExamDesc")}</p>
       </div>
 
-      <h3 style={{ marginBottom: "1rem" }}>Imtihon turi</h3>
+      <h3 style={{ marginBottom: "1rem" }}>{t("colExam")}</h3>
       <div className="exam-grid">
-        {EXAMS.map((e) => (
+        {exams.map((e) => (
           <div
             key={e.id}
             id={`exam-${e.id}`}
@@ -53,9 +59,9 @@ function ExamSelect({ onStart }) {
         ))}
       </div>
 
-      <h3 style={{ margin: "2rem 0 1rem" }}>Savollar soni</h3>
+      <h3 style={{ margin: "2rem 0 1rem" }}>{t("questionCount")}</h3>
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        {MODES.map((m) => (
+        {modes.map((m) => (
           <div
             key={m.id}
             id={`mode-${m.id}`}
@@ -79,7 +85,7 @@ function ExamSelect({ onStart }) {
           disabled={!exam}
           onClick={() => onStart(exam, count)}
         >
-          {exam ? `🚀 ${EXAMS.find((e) => e.id === exam)?.label} testini boshlash` : "Imtihon turini tanlang"}
+          {exam ? `🚀 ${exams.find((e) => e.id === exam)?.label} — ${t("startTestBtn")}` : t("selectExam")}
         </button>
       </div>
     </div>
@@ -88,29 +94,64 @@ function ExamSelect({ onStart }) {
 
 // ─── Active test screen ───────────────────────────────────────────────────────
 function ActiveTest({ questions, exam, onFinish }) {
+  const { t } = useLanguage();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [revealed, setRevealed] = useState(null);   // current result after answering
-  const [checkResult, setCheckResult] = useState(null);
+  const [revealed, setRevealed] = useState(null);
   const [timeLeft, setTimeLeft] = useState(DIFF_SECONDS[questions.length] || 900);
   const [finished, setFinished] = useState(false);
   const startTime = useRef(Date.now());
   const timerRef = useRef(null);
 
-  // Timer
+  const handleSubmit = useCallback(
+    async (timedOut = false) => {
+      clearInterval(timerRef.current);
+      if (finished) return;
+      setFinished(true);
+
+      const timeSpent = Math.floor((Date.now() - startTime.current) / 1000);
+
+      try {
+        const { data } = await questionsAPI.checkAnswers(
+          Object.fromEntries(Object.entries(answers).map(([k, v]) => [String(k), v]))
+        );
+
+        await questionsAPI.saveAttempt({
+          exam_type: exam,
+          total_questions: questions.length,
+          correct_count: data.correct,
+          time_spent_seconds: timeSpent,
+          answers,
+        });
+
+        onFinish({
+          total: questions.length,
+          correct: data.correct,
+          score: data.score_percent,
+          results: data.results,
+          timeSpent,
+          timedOut,
+        });
+      } catch {
+        onFinish({ total: questions.length, correct: 0, score: 0, results: [], timeSpent });
+      }
+    },
+    [answers, questions.length, exam, finished, onFinish]
+  );
+
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
           clearInterval(timerRef.current);
           handleSubmit(true);
           return 0;
         }
-        return t - 1;
+        return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, []);
+  }, [handleSubmit]);
 
   const q = questions[current];
   const totalAnswered = Object.keys(answers).length;
@@ -123,7 +164,6 @@ function ActiveTest({ questions, exam, onFinish }) {
   const confirmAndNext = async () => {
     if (!answers[q.id]) return;
 
-    // Check answer immediately via API
     try {
       const { data } = await questionsAPI.checkAnswers({ [String(q.id)]: answers[q.id] });
       setRevealed(data.results[0]);
@@ -141,40 +181,6 @@ function ActiveTest({ questions, exam, onFinish }) {
     }
   };
 
-  const handleSubmit = useCallback(async (timedOut = false) => {
-    clearInterval(timerRef.current);
-    if (finished) return;
-    setFinished(true);
-
-    const timeSpent = Math.floor((Date.now() - startTime.current) / 1000);
-
-    try {
-      const { data } = await questionsAPI.checkAnswers(
-        Object.fromEntries(Object.entries(answers).map(([k, v]) => [String(k), v]))
-      );
-
-      // Save attempt
-      await questionsAPI.saveAttempt({
-        exam_type: exam,
-        total_questions: questions.length,
-        correct_count: data.correct,
-        time_spent_seconds: timeSpent,
-        answers,
-      });
-
-      onFinish({
-        total: questions.length,
-        correct: data.correct,
-        score: data.score_percent,
-        results: data.results,
-        timeSpent,
-        timedOut,
-      });
-    } catch {
-      onFinish({ total: questions.length, correct: 0, score: 0, results: [], timeSpent });
-    }
-  }, [answers, questions.length, exam, finished]);
-
   const isWarning = timeLeft < 120;
 
   return (
@@ -190,16 +196,14 @@ function ActiveTest({ questions, exam, onFinish }) {
             style={{ width: `${((current + (revealed ? 1 : 0)) / questions.length) * 100}%` }}
           />
         </div>
-        <div className={`timer ${isWarning ? "warning" : ""}`}>
-          ⏱ {fmtTime(timeLeft)}
-        </div>
+        <div className={`timer ${isWarning ? "warning" : ""}`}>⏱ {fmtTime(timeLeft)}</div>
         <button
           id="submit-test-btn"
           className="btn btn-outline btn-sm"
           onClick={() => handleSubmit(false)}
           disabled={totalAnswered === 0}
         >
-          Tugatish
+          {t("finishBtn")}
         </button>
       </div>
 
@@ -207,8 +211,10 @@ function ActiveTest({ questions, exam, onFinish }) {
       <div className="question-card">
         <div className="question-meta">
           <span className="badge badge-sat">{exam.replace("_", " ")}</span>
-          <span className={`badge badge-${q.difficulty === 1 ? "easy" : q.difficulty === 2 ? "med" : "hard"}`}>
-            {q.difficulty === 1 ? "Oson" : q.difficulty === 2 ? "O'rta" : "Qiyin"}
+          <span
+            className={`badge badge-${q.difficulty === 1 ? "easy" : q.difficulty === 2 ? "med" : "hard"}`}
+          >
+            {q.difficulty === 1 ? "Lvl 1" : q.difficulty === 2 ? "Lvl 2" : "Lvl 3"}
           </span>
           <span style={{ fontSize: "0.78rem", color: "var(--text-3)" }}>{q.topic}</span>
         </div>
@@ -243,7 +249,7 @@ function ActiveTest({ questions, exam, onFinish }) {
         {/* Explanation */}
         {revealed && (
           <div className="explanation-box">
-            <strong>{revealed.is_correct ? "✅ To'g'ri!" : "❌ Noto'g'ri"}</strong>
+            <strong>{revealed.is_correct ? `✅ ${t("correctLabel")}!` : `❌ ${t("wrongLabel")}`}</strong>
             {" — "}
             {revealed.explanation_uz}
           </div>
@@ -259,15 +265,11 @@ function ActiveTest({ questions, exam, onFinish }) {
             onClick={confirmAndNext}
             disabled={!answers[q.id]}
           >
-            Javobni tekshirish →
+            {t("nextBtn")} →
           </button>
         ) : (
-          <button
-            id="next-question-btn"
-            className="btn btn-primary"
-            onClick={goNext}
-          >
-            {current + 1 < questions.length ? "Keyingi savol →" : "Natijalarni ko'rish 🏁"}
+          <button id="next-question-btn" className="btn btn-primary" onClick={goNext}>
+            {current + 1 < questions.length ? `${t("nextBtn")} →` : `${t("testResults")} 🏁`}
           </button>
         )}
       </div>
@@ -277,108 +279,133 @@ function ActiveTest({ questions, exam, onFinish }) {
 
 // ─── Results screen ───────────────────────────────────────────────────────────
 function Results({ result, exam, onRestart, onDash }) {
-  const { updateUser } = useAuth();
+  const { t } = useLanguage();
   const [showAll, setShowAll] = useState(false);
 
   const pct = Math.round(result.score);
   const grade =
-    pct >= 90 ? { label: "A'lo!", color: "var(--green)", emoji: "🏆" }
-    : pct >= 70 ? { label: "Yaxshi", color: "var(--accent-2)", emoji: "🎉" }
-    : pct >= 50 ? { label: "O'rtacha", color: "var(--orange)", emoji: "👍" }
-    : { label: "Ko'proq mashq", color: "var(--red)", emoji: "💪" };
+    pct >= 90
+      ? { label: "Excellent!", color: "var(--green)", emoji: "🏆" }
+      : pct >= 70
+      ? { label: "Good job!", color: "var(--accent-2)", emoji: "🎉" }
+      : pct >= 50
+      ? { label: "Average", color: "var(--orange)", emoji: "👍" }
+      : { label: "Needs Practice", color: "var(--red)", emoji: "💪" };
 
   return (
     <div className="container" style={{ paddingTop: "2rem", paddingBottom: "4rem", textAlign: "center" }}>
       <div style={{ maxWidth: "560px", margin: "0 auto" }}>
         {result.timedOut && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--red)", borderRadius: "var(--radius-sm)", padding: "0.7rem 1rem", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
-            ⏰ Vaqt tugadi. Javob berilmagan savollar noto'g'ri hisoblanadi.
+          <div
+            style={{
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "var(--red)",
+              borderRadius: "var(--radius-sm)",
+              padding: "0.7rem 1rem",
+              marginBottom: "1.5rem",
+              fontSize: "0.9rem",
+            }}
+          >
+            ⏰ Time limit reached. Unanswered questions counted as incorrect.
           </div>
         )}
 
         <div className="result-circle" style={{ borderColor: grade.color }}>
           <span style={{ fontSize: "1.5rem" }}>{grade.emoji}</span>
-          <span>{pct}%</span>
-          <small>ball</small>
+          <div className="result-score" style={{ color: grade.color }}>
+            {pct}%
+          </div>
+          <div style={{ fontSize: "0.8rem", color: "var(--text-3)", fontWeight: 600 }}>
+            {result.correct} / {result.total}
+          </div>
         </div>
 
         <h2 style={{ marginBottom: "0.5rem" }}>{grade.label}</h2>
-        <p style={{ marginBottom: "2rem" }}>
-          {result.correct} ta to'g'ri / {result.total} ta savol ·{" "}
-          {Math.floor(result.timeSpent / 60)} daqiqa {result.timeSpent % 60} soniya
+        <p style={{ color: "var(--text-2)", marginBottom: "2rem" }}>
+          {t("colTime")}: {fmtTime(result.timeSpent)}
         </p>
 
-        {/* Wrong answers breakdown */}
-        {result.results.filter((r) => !r.is_correct).length > 0 && (
-          <div style={{ textAlign: "left", marginBottom: "2rem" }}>
-            <div className="section-header" style={{ marginBottom: "0.75rem" }}>
-              <h3>Noto'g'ri javoblar ({result.results.filter((r) => !r.is_correct).length} ta)</h3>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setShowAll((p) => !p)}
-              >
-                {showAll ? "Yopish" : "Ko'rish"}
-              </button>
-            </div>
-
-            {showAll &&
-              result.results
-                .filter((r) => !r.is_correct)
-                .map((r, i) => (
-                  <div key={i} className="explanation-box" style={{ marginBottom: "0.5rem", textAlign: "left" }}>
-                    <strong>Mavzu: {r.topic}</strong>
-                    <br />
-                    Sizning javobingiz: <span style={{ color: "var(--red)" }}>{r.your_answer}</span> ·
-                    To'g'ri javob: <span style={{ color: "var(--green)" }}>{r.correct_answer}</span>
-                    <br />
-                    {r.explanation_uz}
-                  </div>
-                ))}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <button id="retry-btn" className="btn btn-primary btn-lg" onClick={onRestart}>
-            🔄 Qaytadan
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", marginBottom: "2.5rem" }}>
+          <button className="btn btn-primary" onClick={onRestart}>
+            🔄 {t("tryAgain")}
           </button>
-          <button id="dashboard-btn" className="btn btn-outline btn-lg" onClick={onDash}>
-            🏠 Dashboard
+          <button className="btn btn-outline" onClick={onDash}>
+            🏠 {t("backToDashboard")}
           </button>
         </div>
+
+        {/* Answers review */}
+        {result.results && result.results.length > 0 && (
+          <div style={{ textAlign: "left" }}>
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ width: "100%", justifyContent: "center", marginBottom: "1rem" }}
+              onClick={() => setShowAll((s) => !s)}
+            >
+              {showAll ? "▲ Yopish" : `▼ ${t("reviewAnswers")} (${result.results.length})`}
+            </button>
+
+            {showAll && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {result.results.map((r, i) => (
+                  <div
+                    key={r.question_id}
+                    className="card"
+                    style={{
+                      borderLeft: `4px solid ${r.is_correct ? "var(--green)" : "var(--red)"}`,
+                      padding: "1rem 1.25rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                      <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                        #{i + 1} — {r.topic}
+                      </span>
+                      <span style={{ color: r.is_correct ? "var(--green)" : "var(--red)", fontWeight: 700 }}>
+                        {r.is_correct ? `✅ ${t("correctLabel")}` : `❌ ${t("wrongLabel")}`}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "0.82rem", color: "var(--text-3)", marginTop: "0.4rem" }}>
+                      <strong>{t("explanationLabel")}:</strong> {r.explanation_uz}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Main TestPage ────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TestPage() {
-  const [phase, setPhase] = useState("select"); // select | loading | test | results
-  const [questions, setQuestions] = useState([]);
-  const [selectedExam, setSelectedExam] = useState("");
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
   const nav = useNavigate();
+  const [phase, setPhase] = useState("select");
+  const [questions, setQuestions] = useState([]);
+  const [exam, setExam] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleStart = async (exam, count) => {
-    setPhase("loading");
+  const startTest = async (chosenExam, count) => {
+    setLoading(true);
     setError("");
-    setSelectedExam(exam);
     try {
-      const { data } = await questionsAPI.getQuestions({
-        exam_type: exam,
-        limit: count,
-        shuffle: true,
-      });
+      const { data } = await questionsAPI.getQuestions(chosenExam, count);
       if (!data || data.length === 0) {
         setError("Bu imtihon uchun savollar topilmadi.");
-        setPhase("select");
         return;
       }
       setQuestions(data);
+      setExam(chosenExam);
       setPhase("test");
-    } catch (err) {
-      setError(err.response?.data?.detail || "Savollar yuklanmadi");
-      setPhase("select");
+    } catch {
+      setError("Savollarni yuklashda xatolik yuz berdi.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -387,37 +414,26 @@ export default function TestPage() {
     setPhase("results");
   };
 
-  if (phase === "loading") return <div className="spinner" />;
-
-  if (phase === "results") {
-    return (
-      <Results
-        result={result}
-        exam={selectedExam}
-        onRestart={() => setPhase("select")}
-        onDash={() => nav("/dashboard")}
-      />
-    );
-  }
-
-  if (phase === "test") {
-    return (
-      <ActiveTest
-        questions={questions}
-        exam={selectedExam}
-        onFinish={handleFinish}
-      />
-    );
-  }
+  if (loading) return <div className="spinner" />;
 
   return (
-    <>
+    <div>
       {error && (
-        <div className="container">
-          <div className="error-box" style={{ marginTop: "1rem" }}>{error}</div>
+        <div className="container" style={{ paddingTop: "1rem" }}>
+          <div className="error-box">{error}</div>
         </div>
       )}
-      <ExamSelect onStart={handleStart} />
-    </>
+
+      {phase === "select" && <ExamSelect onStart={startTest} />}
+      {phase === "test" && <ActiveTest questions={questions} exam={exam} onFinish={handleFinish} />}
+      {phase === "results" && (
+        <Results
+          result={result}
+          exam={exam}
+          onRestart={() => setPhase("select")}
+          onDash={() => nav("/dashboard")}
+        />
+      )}
+    </div>
   );
 }

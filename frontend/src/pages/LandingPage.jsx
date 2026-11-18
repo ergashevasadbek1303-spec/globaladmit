@@ -1,59 +1,66 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../api/AuthContext";
-
-const FEATURES = [
-  { icon: "🎯", title: "Diagnostik test", desc: "Zaif mavzularingizni aniqlab, shaxsiy o'quv reja tuzing" },
-  { icon: "📊", title: "AI tahlil", desc: "Xatolaringiz mavzu bo'yicha tahlil qilinadi, yechim o'zbek tilida" },
-  { icon: "⏱", title: "Mock imtihon", desc: "Haqiqiy imtihon formati: vaqt chegarasi, variantlar" },
-  { icon: "🏆", title: "Reyting", desc: "Haftalik reyting, streak va sertifikat bilan motivatsiya" },
-  { icon: "🌍", title: "Ko'p imtihon", desc: "SAT, IELTS, ACT, DTM — hammasi bitta platformada" },
-  { icon: "🇺🇿", title: "O'zbek tilida", desc: "Har bir savolga o'zbekcha batafsil yechim" },
-];
+import { useLanguage } from "../i18n/LanguageContext";
 
 const EXAMS = [
   { name: "SAT", desc: "Harvard, MIT, Yale", color: "#6c63ff", icon: "🏛" },
-  { name: "IELTS", desc: "Dunyo universitetlari", color: "#22c55e", icon: "🌍" },
-  { name: "DTM", desc: "O'zbek universitetlari", color: "#eab308", icon: "🇺🇿" },
-  { name: "TOEFL", desc: "AQSh universitetlari", color: "#60a5fa", icon: "📚" },
+  { name: "IELTS", desc: "Global Universities", color: "#22c55e", icon: "🌍" },
+  { name: "DTM", desc: "National Universities", color: "#eab308", icon: "🇺🇿" },
+  { name: "TOEFL", desc: "US Universities", color: "#60a5fa", icon: "📚" },
 ];
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+
+  const features = [
+    { icon: "🎯", title: t("featDiagnostic"), desc: t("featDiagnosticDesc") },
+    { icon: "📊", title: t("featAi"), desc: t("featAiDesc") },
+    { icon: "⏱", title: t("featMock"), desc: t("featMockDesc") },
+    { icon: "🏆", title: t("featLeaderboard"), desc: t("featLeaderboardDesc") },
+    { icon: "🌍", title: t("featMultiExam"), desc: t("featMultiExamDesc") },
+    { icon: "🌐", title: t("featMultiLang"), desc: t("featMultiLangDesc") },
+  ];
 
   return (
     <div>
       {/* Hero */}
       <section className="hero container">
-        <div className="hero-tag">🎓 O'zbek abituriyentlari uchun</div>
+        <div className="hero-tag">{t("heroBadge")}</div>
         <h1>
-          Chet el universitetlariga
+          {t("heroTitle1")}
           <br />
-          <span>ishonchli tayyorlan</span>
+          <span>{t("heroTitle2")}</span>
         </h1>
-        <p>
-          SAT, IELTS, DTM va boshqa imtihonlarga o'zbek tilida tushuntirishlar bilan.
-          Shaxsiy reja, AI tahlil va haftalik reyting bilan.
-        </p>
+        <p>{t("heroDesc")}</p>
         <div className="hero-btns">
           {user ? (
             <Link to="/dashboard" className="btn btn-primary btn-lg" id="hero-dashboard">
-              Dashboard →
+              {t("btnDashboard")}
             </Link>
           ) : (
             <>
               <Link to="/register" className="btn btn-primary btn-lg" id="hero-start">
-                Bepul boshlash →
+                {t("btnStartFree")}
               </Link>
               <Link to="/login" className="btn btn-outline btn-lg" id="hero-login">
-                Kirish
+                {t("btnLogin")}
               </Link>
             </>
           )}
         </div>
 
         {/* Exam badges */}
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap", marginTop: "3rem" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginTop: "3rem",
+          }}
+        >
           {EXAMS.map((e) => (
             <div
               key={e.name}
@@ -69,7 +76,9 @@ export default function LandingPage() {
             >
               <span style={{ fontSize: "1.3rem" }}>{e.icon}</span>
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-1)" }}>{e.name}</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-1)" }}>
+                  {e.name}
+                </div>
                 <div style={{ fontSize: "0.72rem", color: "var(--text-3)" }}>{e.desc}</div>
               </div>
             </div>
@@ -81,14 +90,15 @@ export default function LandingPage() {
       <section style={{ padding: "4rem 0" }}>
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <h2>Nima uchun GlobalAdmit?</h2>
-            <p style={{ maxWidth: "500px", margin: "0.75rem auto 0" }}>
-              Bepul resurslardan farqi — o'zbek tilida yechim, AI tahlil va shaxsiy reja
-            </p>
+            <h2>{t("whyTitle")}</h2>
+            <p style={{ maxWidth: "550px", margin: "0.75rem auto 0" }}>{t("whyDesc")}</p>
           </div>
 
-          <div className="exam-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-            {FEATURES.map((f) => (
+          <div
+            className="exam-grid"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+          >
+            {features.map((f) => (
               <div className="card" key={f.title}>
                 <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>{f.icon}</div>
                 <h3 style={{ marginBottom: "0.4rem" }}>{f.title}</h3>
@@ -110,13 +120,13 @@ export default function LandingPage() {
               padding: "3rem 2rem",
             }}
           >
-            <h2 style={{ marginBottom: "0.75rem" }}>Hoziroq boshlang</h2>
-            <p style={{ marginBottom: "2rem", maxWidth: "400px", margin: "0 auto 2rem" }}>
-              Bepul ro'yxatdan o'ting. Kredit kartasi shart emas.
+            <h2 style={{ marginBottom: "0.75rem" }}>{t("ctaTitle")}</h2>
+            <p style={{ marginBottom: "2rem", maxWidth: "450px", margin: "0 auto 2rem" }}>
+              {t("ctaDesc")}
             </p>
             {!user && (
               <Link to="/register" className="btn btn-primary btn-lg" id="cta-register">
-                Bepul boshlash →
+                {t("btnRegisterNow")}
               </Link>
             )}
           </div>

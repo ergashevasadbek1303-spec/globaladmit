@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../api/AuthContext";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useLanguage();
   const nav = useNavigate();
   const [form, setForm] = useState({
     full_name: "",
@@ -22,11 +24,11 @@ export default function RegisterPage() {
     setError("");
 
     if (form.password !== form.password2) {
-      setError("Parollar mos emas");
+      setError(t("passwordsMismatch"));
       return;
     }
     if (form.password.length < 8) {
-      setError("Parol kamida 8 ta belgi bo'lishi kerak");
+      setError("Parol kamida 8 ta belgi bo'lishi kerak / Min 8 chars");
       return;
     }
 
@@ -56,20 +58,20 @@ export default function RegisterPage() {
       <div className="auth-card">
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🚀</div>
-          <h1>Boshlang!</h1>
-          <p>Bepul hisob yarating va tayyorlovni boshlang</p>
+          <h1>{t("registerTitle")}</h1>
+          <p>{t("registerSubtitle")}</p>
         </div>
 
         {error && <div className="error-box" style={{ marginBottom: "1rem" }}>{error}</div>}
 
         <form className="auth-form" onSubmit={submit}>
           <div className="input-group">
-            <label htmlFor="reg-fullname">To'liq ism</label>
+            <label htmlFor="reg-name">{t("fullNameLabel")}</label>
             <input
-              id="reg-fullname"
+              id="reg-name"
               className="input"
               type="text"
-              placeholder="Jasur Karimov"
+              placeholder="Ulug'bek Mirzo"
               value={form.full_name}
               onChange={set("full_name")}
               required
@@ -77,22 +79,21 @@ export default function RegisterPage() {
           </div>
 
           <div className="input-group">
-            <label htmlFor="reg-username">Username</label>
+            <label htmlFor="reg-user">{t("usernameLabel")}</label>
             <input
-              id="reg-username"
+              id="reg-user"
               className="input"
               type="text"
-              placeholder="jasur_k"
+              placeholder="ulugbek_m"
               value={form.username}
               onChange={set("username")}
               required
-              minLength={3}
-              maxLength={30}
+              autoComplete="username"
             />
           </div>
 
           <div className="input-group">
-            <label htmlFor="reg-email">Email</label>
+            <label htmlFor="reg-email">{t("emailLabel")}</label>
             <input
               id="reg-email"
               className="input"
@@ -106,12 +107,12 @@ export default function RegisterPage() {
           </div>
 
           <div className="input-group">
-            <label htmlFor="reg-password">Parol</label>
+            <label htmlFor="reg-pass">{t("passwordLabel")}</label>
             <input
-              id="reg-password"
+              id="reg-pass"
               className="input"
               type="password"
-              placeholder="Kamida 8 ta belgi"
+              placeholder="••••••••"
               value={form.password}
               onChange={set("password")}
               required
@@ -120,9 +121,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="input-group">
-            <label htmlFor="reg-password2">Parolni tasdiqlang</label>
+            <label htmlFor="reg-pass2">{t("confirmPasswordLabel")}</label>
             <input
-              id="reg-password2"
+              id="reg-pass2"
               className="input"
               type="password"
               placeholder="••••••••"
@@ -134,19 +135,21 @@ export default function RegisterPage() {
           </div>
 
           <button
-            id="reg-submit"
             type="submit"
-            className="btn btn-primary btn-full btn-lg"
+            className="btn btn-primary"
+            style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem" }}
             disabled={loading}
-            style={{ marginTop: "0.5rem" }}
           >
-            {loading ? "Yuklanmoqda..." : "Ro'yxatdan o'tish →"}
+            {loading ? <div className="spinner" /> : t("btnRegisterSubmit")}
           </button>
         </form>
 
-        <div className="auth-footer">
-          Hisobingiz bormi? <Link to="/login">Kiring</Link>
-        </div>
+        <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "0.85rem", color: "var(--text-3)" }}>
+          {t("haveAccount")}{" "}
+          <Link to="/login" style={{ color: "var(--primary-light)", fontWeight: 600 }}>
+            {t("btnLoginSubmit")}
+          </Link>
+        </p>
       </div>
     </div>
   );

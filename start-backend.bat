@@ -9,5 +9,5 @@ if not exist .env (
     pause
     exit /b 1
 )
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8000
 pause
