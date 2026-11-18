@@ -77,8 +77,8 @@ class RegisterSchema(BaseModel):
     @field_validator("password")
     @classmethod
     def password_strong(cls, v):
-        if len(v) < 8:
-            raise ValueError("Parol kamida 8 ta belgi bo'lishi kerak")
+        if len(v) < 4:
+            raise ValueError("Parol kamida 4 ta belgi bo'lishi kerak")
         return v
 
     @field_validator("full_name")
