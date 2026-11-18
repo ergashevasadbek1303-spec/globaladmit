@@ -1,37 +1,40 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { translations } from "./translations";
 
-const LanguageContext = createContext();
+const LanguageContext = createContext(null);
 
 export const SUPPORTED_LANGUAGES = [
   { code: "uz", label: "O'zbekcha", flag: "🇺🇿", short: "UZ" },
-  { code: "ru", label: "Русский", flag: "🇷🇺", short: "RU" },
-  { code: "en", label: "English", flag: "🇬🇧", short: "EN" },
+  { code: "ru", label: "Русский",   flag: "🇷🇺", short: "RU" },
+  { code: "en", label: "English",   flag: "🇬🇧", short: "EN" },
 ];
 
-export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => {
-    return localStorage.getItem("globaladmit_lang") || "uz";
-  });
+function getSavedLang() {
+  try {
+    const saved = localStorage.getItem("globaladmit_lang");
+    if (saved && translations[saved]) return saved;
+  } catch {}
+  return "uz";
+}
 
-  const changeLanguage = (newLang) => {
+export function LanguageProvider({ children }) {
+  const [lang, setLang] = useState(getSavedLang);
+
+  const changeLanguage = useCallback((newLang) => {
     if (translations[newLang]) {
       setLang(newLang);
-      localStorage.setItem("globaladmit_lang", newLang);
+      try { localStorage.setItem("globaladmit_lang", newLang); } catch {}
     }
-  };
+  }, []);
 
-  const t = (key, params = {}) => {
-    const langDict = translations[lang] || translations.uz;
-    let text = langDict[key] || translations.uz[key] || key;
-
-    // Parameter interpolation like {count}
+  const t = useCallback((key, params = {}) => {
+    const dict = translations[lang] ?? translations.uz;
+    let text = dict[key] ?? translations.uz[key] ?? key;
     Object.keys(params).forEach((p) => {
-      text = text.replace(new RegExp(`\\{${p}\\}`, "g"), params[p]);
+      text = text.replace(new RegExp(`\\{${p}\\}`, "g"), String(params[p]));
     });
-
     return text;
-  };
+  }, [lang]);
 
   return (
     <LanguageContext.Provider value={{ lang, changeLanguage, t, languages: SUPPORTED_LANGUAGES }}>
@@ -42,8 +45,6 @@ export function LanguageProvider({ children }) {
 
 export function useLanguage() {
   const ctx = useContext(LanguageContext);
-  if (!ctx) {
-    throw new Error("useLanguage must be used within a LanguageProvider");
-  }
+  if (!ctx) throw new Error("useLanguage must be used inside <LanguageProvider>");
   return ctx;
 }
